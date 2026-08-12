@@ -440,6 +440,29 @@ async function main() {
   const adminEmail = process.env.SEED_ADMIN_EMAIL;
   const adminPassword = process.env.SEED_ADMIN_PASSWORD;
 
+  // A seeded admin means a password exists in a file, and files get committed.
+  // Refuse the obviously-weak ones rather than quietly creating an account
+  // whose credentials are readable by anyone who clones the repository.
+  if (adminEmail && adminPassword) {
+    const weak =
+      adminPassword.length < 12 || /changeme|password|admin|123456|letmein/i.test(adminPassword);
+
+    if (weak) {
+      console.error(
+        [
+          "",
+          `Refusing to create ${adminEmail}: SEED_ADMIN_PASSWORD is weak or a known default.`,
+          "",
+          "Leave SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD empty and let the first person who",
+          "signs up become the admin. Then no password is ever written into a file — which",
+          "matters, because files get committed and git history is forever.",
+          "",
+        ].join("\n"),
+      );
+      process.exit(1);
+    }
+  }
+
   if (adminEmail && adminPassword) {
     const existing = await prisma.user.findUnique({ where: { email: adminEmail } });
     if (existing) {
