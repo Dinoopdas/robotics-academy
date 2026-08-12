@@ -7,21 +7,33 @@ programming, simulating and troubleshooting real robotic systems.
 
 ## Running it
 
-You need [Node.js 20.9+](https://nodejs.org). Nothing else — no database server, no Docker.
+You need [Node.js 20.9+](https://nodejs.org) and a PostgreSQL database.
+
+If you do not have one, this provisions a free hosted database in about ten seconds with no signup,
+writing `DATABASE_URL` straight into your `.env`:
+
+```bash
+npx create-db@latest create --env .env
+```
+
+Then:
 
 ```bash
 npm install
-cp .env.example .env
 npm run setup
 npm run dev
 ```
 
-Then open <http://localhost:3000>.
+Open <http://localhost:3000>.
 
-`npm run setup` generates the Prisma client, creates the SQLite database and loads the entire
-curriculum. It prints the admin account it creates (`SEED_ADMIN_EMAIL` in `.env`).
+`npm run setup` generates the Prisma client, creates the tables and loads the entire curriculum —
+16 tracks, 24 courses, 28 lessons, 74 glossary terms and a 153-document search index. It validates
+every cross-reference first and refuses to write anything if one is broken.
 
-> **Before deploying anywhere**, change `AUTH_SECRET` in `.env` to a long random value:
+> A `create-db` database that is never claimed is **deleted after 24 hours**. For anything you want
+> to keep, create a free Neon or Supabase project instead.
+
+> **Before deploying**, replace `AUTH_SECRET` in `.env` with a real random value:
 > ```bash
 > node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 > ```
@@ -145,33 +157,56 @@ things it uses as unsupported by `output: 'export'`:
 A static export would drop authentication, progress tracking, quiz marking, search and the admin
 area — everything except reading. **Put the repository on GitHub, host the running app elsewhere.**
 
-### Somewhere with a persistent disk (SQLite stays)
+### Deploying to Vercel
 
-Railway, Render or Fly.io give the app a real filesystem, so nothing changes: set `DATABASE_URL`
-and `AUTH_SECRET`, mount a volume for the `.db` file, and run `npm run setup` once on first boot.
+1. **Create a Postgres database.** Neon, Supabase and Prisma Postgres all have free tiers big
+   enough for this (~1 MB seeded). **Pick the same region as your Vercel deployment** — every page
+   runs several queries, so a cross-continent database turns a 300 ms page into a 5 second one.
+2. **Load the schema and content** from your machine, pointed at the new database:
+   ```bash
+   DATABASE_URL="<your-connection-string>" npm run db:push
+   DATABASE_URL="<your-connection-string>" npm run db:seed
+   ```
+3. **Import the GitHub repo** on Vercel. It detects Next.js; no build settings to change.
+4. **Set environment variables** in the Vercel project:
 
-### Vercel / Netlify (serverless — needs Postgres)
+   | Variable | Value |
+   | --- | --- |
+   | `DATABASE_URL` | your Postgres connection string |
+   | `AUTH_SECRET` | a fresh 48-byte random string (see below) |
+   | `NEXT_PUBLIC_SITE_URL` | `https://your-app.vercel.app` |
 
-Their filesystems are ephemeral, so SQLite reads would work and every write would silently vanish.
-Move to Postgres first (below), then set `DATABASE_URL`, `AUTH_SECRET` and `NEXT_PUBLIC_SITE_URL`
-as environment variables in the dashboard. Neon, Supabase and Vercel Postgres all have free tiers.
+5. **Deploy.** Then open the site and sign up — the first account becomes the admin.
+
+Leave `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD` unset in production. Letting the first sign-up
+become admin means no password is ever written into a config file.
+
+### Somewhere with a persistent disk
+
+Railway, Render and Fly.io give the app a real filesystem and long-running process. The same
+Postgres setup applies — the app no longer supports SQLite.
+
+### Things that actually break deploys
+
+These are all handled in the repo already; they are listed because they are non-obvious.
+
+- **`postinstall: prisma generate`** — the generated client is gitignored, so a fresh clone has no
+  client at all and the build fails without this.
+- **Connection pool size** — `next build` fans out across parallel workers and serverless runs many
+  concurrent instances, each with its own pool. Total connections are `pools × max`. A pool of 10
+  became ~70 connections during a build and the database refused them. `src/lib/db.ts` drops the
+  pool to 1 for builds and serverless.
+- **`NEXT_PUBLIC_SITE_URL`** — it is inlined at build time, so setting it after deploying does
+  nothing until you redeploy. Canonical links, Open Graph tags and the sitemap all depend on it.
 
 ### Before any deploy
 
-- Generate a fresh `AUTH_SECRET` — the one in `.env` is a development placeholder
-- Set `NEXT_PUBLIC_SITE_URL` to the real domain, or canonical links and the sitemap will point at localhost
-- Change the seeded admin password, or remove `SEED_ADMIN_EMAIL` and let the first sign-up become admin
-
-## Moving to PostgreSQL
-
-SQLite is the default so the platform runs with zero setup. The schema is written to be portable —
-no enums, no scalar lists, all structured values JSON-encoded — so switching needs no model changes:
-
-1. `npm install @prisma/adapter-pg pg`
-2. In `prisma/schema.prisma`, set `provider = "postgresql"`
-3. In `src/lib/db.ts`, swap `PrismaBetterSqlite3` for `PrismaPg`
-4. Set `DATABASE_URL` to your Postgres connection string
-5. `npm run db:push && npm run db:seed`
+- Generate a fresh `AUTH_SECRET`; the one in `.env` is a development placeholder:
+  ```bash
+  node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
+  ```
+- Confirm `NEXT_PUBLIC_SITE_URL` is the real domain
+- Note that Vercel's free Hobby plan is for personal, non-commercial use
 
 ---
 

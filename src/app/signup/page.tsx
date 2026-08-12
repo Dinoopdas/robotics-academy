@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { prisma } from "@/lib/db";
-import { getSession } from "@/lib/auth/session";
+import { getLiveSession } from "@/lib/auth";
 import { signUpAction } from "@/lib/actions/auth";
 import { Container } from "@/components/ui/primitives";
 import { AuthForm } from "@/components/auth/auth-form";
@@ -19,7 +19,7 @@ export default async function SignupPage({
 }: {
   searchParams: Promise<{ next?: string }>;
 }) {
-  const session = await getSession();
+  const session = await getLiveSession();
   const params = await searchParams;
 
   if (session) redirect(params.next?.startsWith("/") ? params.next : "/dashboard");

@@ -34,6 +34,27 @@ export async function currentUser() {
   });
 }
 
+/**
+ * A session that is also confirmed to still exist in the database.
+ *
+ * Use this anywhere a truthy session causes a *redirect away* — the sign-in and
+ * sign-up pages especially. Trusting the raw cookie there strands anyone whose
+ * account has gone: sign-up bounces to the dashboard, the dashboard bounces
+ * back to sign-in, and there is no way out of the loop.
+ */
+export async function getLiveSession(): Promise<SessionUser | null> {
+  const session = await getSession();
+  if (!session) return null;
+
+  const exists = await prisma.user.findUnique({
+    where: { id: session.id },
+    select: { role: true },
+  });
+  if (!exists) return null;
+
+  return { ...session, role: exists.role === "ADMIN" ? "ADMIN" : "USER" };
+}
+
 /** For server actions: throws rather than redirecting, so the caller can report. */
 export async function requireUser(): Promise<SessionUser> {
   const session = await getSession();
@@ -54,11 +75,30 @@ export async function requireAdmin(): Promise<SessionUser> {
   return user;
 }
 
-/** For pages: sends the visitor to sign in and back again afterwards. */
+/**
+ * For pages: sends the visitor to sign in and back again afterwards.
+ *
+ * Sessions are stateless JWTs, so a cookie stays cryptographically valid after
+ * its user is gone — a deleted account, or a database that was reset or
+ * migrated. Verifying existence here turns that into a clean redirect to
+ * sign-in, instead of a page that renders blank because its data fetch came
+ * back empty.
+ *
+ * The stale cookie cannot be cleared during a page render — Next.js only
+ * allows setting cookies in Server Actions and Route Handlers — but signing in
+ * overwrites it, so it resolves on the very next step.
+ */
 export async function requireUserPage(returnTo: string): Promise<SessionUser> {
   const session = await getSession();
   if (!session) redirect(`/login?next=${encodeURIComponent(returnTo)}`);
-  return session;
+
+  const exists = await prisma.user.findUnique({
+    where: { id: session.id },
+    select: { role: true },
+  });
+  if (!exists) redirect(`/login?next=${encodeURIComponent(returnTo)}&expired=1`);
+
+  return { ...session, role: exists.role === "ADMIN" ? "ADMIN" : "USER" };
 }
 
 export async function requireAdminPage(returnTo: string): Promise<SessionUser> {

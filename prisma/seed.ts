@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 import bcrypt from "bcryptjs";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 
 import {
@@ -20,7 +20,7 @@ import { blocksToSearchText, estimateMinutes, normaliseText } from "../src/lib/c
 import { resolveDatabaseUrl } from "../src/lib/database-url";
 import type { LessonSource } from "../src/content/schema";
 
-const adapter = new PrismaBetterSqlite3({ url: resolveDatabaseUrl() });
+const adapter = new PrismaPg({ connectionString: resolveDatabaseUrl() });
 const prisma = new PrismaClient({ adapter });
 
 const json = (value: unknown) => JSON.stringify(value ?? []);

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { getSession } from "@/lib/auth/session";
+import { getLiveSession } from "@/lib/auth";
 import { signInAction } from "@/lib/actions/auth";
 import { Container } from "@/components/ui/primitives";
 import { AuthForm } from "@/components/auth/auth-form";
@@ -16,10 +16,13 @@ export const metadata: Metadata = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; expired?: string }>;
 }) {
-  const session = await getSession();
   const params = await searchParams;
+
+  // getLiveSession returns null when the cookie is valid but its account is
+  // gone, so a stranded visitor reaches the form instead of being bounced.
+  const session = await getLiveSession();
 
   if (session) redirect(params.next?.startsWith("/") ? params.next : "/dashboard");
 
@@ -31,6 +34,15 @@ export default async function LoginPage({
           <h1 className="mt-4 text-2xl font-semibold tracking-tight">Welcome back</h1>
           <p className="mt-1.5 text-text-2">Sign in to pick up where you left off.</p>
         </div>
+
+        {params.expired ? (
+          <div className="mb-5 rounded-lg border-l-2 border-l-amber bg-amber-soft/40 px-4 py-3">
+            <p className="label-tech mb-0.5 text-amber">Session no longer valid</p>
+            <p className="text-sm text-text-2">
+              You were signed in, but that account no longer exists. Sign in again to continue.
+            </p>
+          </div>
+        ) : null}
 
         <AuthForm
           mode="signin"

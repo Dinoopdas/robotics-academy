@@ -1,12 +1,15 @@
 // Robotics Academy — data model
 //
-// Provider note: SQLite is the zero-setup default so the platform runs locally
-// with no external services. SQLite has no native enum or scalar-list support,
-// so status/kind columns are Strings constrained by TypeScript unions in
-// src/lib/enums.ts, and list/structured values are JSON-encoded Strings read
-// through the typed accessors in src/lib/content/parse.ts. That keeps the
-// schema portable: switching `provider` to "postgresql" requires no model
-// changes, only a datasource URL and adapter swap.
+// Provider note: PostgreSQL, because the platform deploys to a serverless host
+// whose filesystem is ephemeral — SQLite reads would work there and every write
+// would silently vanish.
+//
+// The model deliberately uses no enums and no scalar lists: status/kind columns
+// are Strings constrained by TypeScript unions in src/lib/enums.ts, and
+// list/structured values are JSON-encoded Strings read through the typed
+// accessors in src/lib/content/parse.ts. That began as a SQLite constraint and
+// is kept because it makes the schema portable — moving from SQLite to Postgres
+// required no model changes at all.
 
 generator client {
   provider = "prisma-client"
@@ -14,7 +17,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 // ---------------------------------------------------------------------------
