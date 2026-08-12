@@ -1,0 +1,514 @@
+// Robotics Academy — data model
+//
+// Provider note: SQLite is the zero-setup default so the platform runs locally
+// with no external services. SQLite has no native enum or scalar-list support,
+// so status/kind columns are Strings constrained by TypeScript unions in
+// src/lib/enums.ts, and list/structured values are JSON-encoded Strings read
+// through the typed accessors in src/lib/content/parse.ts. That keeps the
+// schema portable: switching `provider` to "postgresql" requires no model
+// changes, only a datasource URL and adapter swap.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ---------------------------------------------------------------------------
+// Identity
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String  @id @default(cuid())
+  email        String  @unique
+  passwordHash String
+  name         String
+  role         String  @default("USER") // USER | ADMIN
+  bio          String?
+  goal         String? // what the learner says they want to build
+
+  currentStreak Int       @default(0)
+  longestStreak Int       @default(0)
+  lastActiveOn  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lessonProgress   LessonProgress[]
+  projectProgress  ProjectProgress[]
+  quizAttempts     QuizAttempt[]
+  challengeAttempt ChallengeAttempt[]
+  bookmarks        Bookmark[]
+  achievements     UserAchievement[]
+  skills           UserSkill[]
+  studyDays        StudyDay[]
+
+  @@index([role])
+}
+
+// ---------------------------------------------------------------------------
+// Curriculum: Track (roadmap level) -> Course -> Module -> Lesson
+// ---------------------------------------------------------------------------
+
+model Track {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  level       Int     @unique // 0..15, drives roadmap ordering
+  title       String
+  subtitle    String
+  description String
+  outcome     String // what the learner can do after this level
+  accent      String  @default("cyan") // design token key
+  icon        String  @default("chip")
+  published   Boolean @default(true)
+
+  courses Course[]
+
+  @@index([level])
+}
+
+model Course {
+  id       String @id @default(cuid())
+  slug     String @unique
+  trackId  String
+  position Int
+
+  title            String
+  subtitle         String
+  description      String
+  difficulty       String // BEGINNER | INTERMEDIATE | ADVANCED | PROFESSIONAL
+  estimatedMinutes Int    @default(0)
+
+  tags          String @default("[]") // JSON string[]
+  prerequisites String @default("[]") // JSON course-slug[]
+  skillSlugs    String @default("[]") // JSON skill-slug[]
+
+  published Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  track    Track     @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  modules  Module[]
+  lessons  Lesson[]
+  quizzes  Quiz[]
+  projects Project[] @relation("CourseProjects")
+
+  @@index([trackId, position])
+  @@index([difficulty])
+}
+
+model Module {
+  id       String @id @default(cuid())
+  slug     String
+  courseId String
+  position Int
+
+  title       String
+  description String
+
+  published Boolean @default(true)
+
+  course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons Lesson[]
+
+  @@unique([courseId, slug])
+  @@index([courseId, position])
+}
+
+model Lesson {
+  id       String @id @default(cuid())
+  slug     String
+  moduleId String
+  courseId String // denormalised so /learn/[course]/[lesson] resolves in one query
+  position Int
+
+  title            String
+  summary          String
+  difficulty       String @default("BEGINNER")
+  estimatedMinutes Int    @default(10)
+
+  objectives String @default("[]") // JSON string[]
+  /// JSON-encoded LessonBlock[] — see src/lib/content/types.ts
+  blocks     String @default("[]")
+  keyTerms   String @default("[]") // JSON glossary-slug[]
+
+  published Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  module   Module           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  course   Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  quiz     Quiz?
+  progress LessonProgress[]
+
+  @@unique([courseId, slug])
+  @@index([moduleId, position])
+  @@index([courseId, position])
+}
+
+// ---------------------------------------------------------------------------
+// Assessment
+// ---------------------------------------------------------------------------
+
+model Quiz {
+  id       String  @id @default(cuid())
+  slug     String  @unique
+  lessonId String? @unique
+  courseId String?
+
+  title        String
+  description  String @default("")
+  passingScore Int    @default(70) // percent
+
+  lesson    Lesson?       @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  course    Course?       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  questions Question[]
+  attempts  QuizAttempt[]
+}
+
+model Question {
+  id       String @id @default(cuid())
+  quizId   String
+  position Int
+
+  prompt      String
+  kind        String @default("SINGLE") // SINGLE | MULTI | TRUE_FALSE
+  explanation String @default("")
+  points      Int    @default(1)
+
+  quiz    Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  answers Answer[]
+
+  @@index([quizId, position])
+}
+
+model Answer {
+  id         String @id @default(cuid())
+  questionId String
+  position   Int
+
+  text      String
+  isCorrect Boolean @default(false)
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId, position])
+}
+
+model QuizAttempt {
+  id     String @id @default(cuid())
+  userId String
+  quizId String
+
+  score     Int // percent
+  correct   Int
+  total     Int
+  passed    Boolean
+  responses String @default("{}") // JSON Record<questionId, answerId[]>
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@index([userId, quizId])
+}
+
+// ---------------------------------------------------------------------------
+// Projects, challenges, simulations
+// ---------------------------------------------------------------------------
+
+model Project {
+  id       String @id @default(cuid())
+  slug     String @unique
+  position Int    @default(0)
+
+  title      String
+  summary    String
+  difficulty String // BEGINNER | INTERMEDIATE | ADVANCED | PROFESSIONAL
+  category   String @default("general")
+
+  estimatedHours Float  @default(2)
+  tags           String @default("[]") // JSON string[]
+  prerequisites  String @default("[]") // JSON lesson/course slug[]
+  skillSlugs     String @default("[]") // JSON skill-slug[]
+
+  hardware String @default("[]") // JSON {name,qty,note,optional}[]
+  software String @default("[]") // JSON {name,note,url}[]
+
+  /// JSON-encoded ProjectSection[] — overview, architecture, theory, build,
+  /// code, test, troubleshooting, challenge, expectedResult
+  blocks String @default("[]")
+
+  published Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  courses  Course[]          @relation("CourseProjects")
+  progress ProjectProgress[]
+
+  @@index([difficulty, position])
+}
+
+model ProjectProgress {
+  id        String @id @default(cuid())
+  userId    String
+  projectId String
+
+  status      String    @default("IN_PROGRESS") // IN_PROGRESS | COMPLETED
+  notes       String    @default("")
+  completedAt DateTime?
+  updatedAt   DateTime  @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
+}
+
+model Challenge {
+  id       String @id @default(cuid())
+  slug     String @unique
+  position Int    @default(0)
+
+  title      String
+  difficulty String // BEGINNER | INTERMEDIATE | ADVANCED
+  category   String @default("programming")
+  language   String @default("python")
+
+  prompt      String
+  inputSpec   String @default("")
+  outputSpec  String @default("")
+  starterCode String @default("")
+  solution    String @default("")
+  explanation String @default("")
+
+  hints     String @default("[]") // JSON string[]
+  testCases String @default("[]") // JSON {input,expected,explanation}[]
+
+  published Boolean @default(true)
+
+  attempts ChallengeAttempt[]
+
+  @@index([difficulty, position])
+}
+
+model ChallengeAttempt {
+  id          String @id @default(cuid())
+  userId      String
+  challengeId String
+
+  code      String
+  passed    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+
+  @@index([userId, challengeId])
+}
+
+model Simulation {
+  id       String @id @default(cuid())
+  slug     String @unique
+  position Int    @default(0)
+
+  title       String
+  description String
+  category    String @default("control")
+  /// Key resolved by src/components/interactive/registry.ts to a real widget.
+  widget      String
+  /// JSON widget props, validated by the widget's own schema.
+  config      String @default("{}")
+
+  learnMore String @default("[]") // JSON {label,href}[]
+  published Boolean @default(true)
+
+  @@index([category, position])
+}
+
+// ---------------------------------------------------------------------------
+// Reference material
+// ---------------------------------------------------------------------------
+
+model GlossaryTerm {
+  id   String @id @default(cuid())
+  slug String @unique
+
+  term         String
+  abbreviation String @default("")
+  category     String @default("general")
+
+  simple    String // plain-language definition
+  technical String // engineering definition
+  example   String @default("")
+  formula   String @default("") // optional KaTeX
+
+  relatedSlugs String @default("[]") // JSON glossary-slug[]
+  lessonRefs   String @default("[]") // JSON {courseSlug,lessonSlug,title}[]
+
+  @@index([category])
+}
+
+model TroubleshootingEntry {
+  id       String @id @default(cuid())
+  slug     String @unique
+  position Int    @default(0)
+
+  title    String
+  symptom  String
+  category String @default("general") // hardware | ros | control | vision | industrial
+  severity String @default("common")
+
+  /// JSON {cause, likelihood, checks:string[], fix}[]
+  causes    String @default("[]")
+  relatedIds String @default("[]") // JSON troubleshooting-slug[]
+
+  @@index([category, position])
+}
+
+// ---------------------------------------------------------------------------
+// Skills, achievements, progress
+// ---------------------------------------------------------------------------
+
+model Skill {
+  id   String @id @default(cuid())
+  slug String @unique
+
+  name        String
+  description String
+  category    String // programming | electronics | math | perception | control | integration
+  tier        Int    @default(0) // depth in the skill tree, drives layout
+
+  parentSlugs String @default("[]") // JSON skill-slug[] — DAG edges
+  courseSlugs String @default("[]") // JSON course-slug[] — how it is earned
+
+  users UserSkill[]
+
+  @@index([tier])
+}
+
+model UserSkill {
+  id      String @id @default(cuid())
+  userId  String
+  skillId String
+
+  progress   Int       @default(0) // 0..100, derived from course completion
+  unlockedAt DateTime?
+  updatedAt  DateTime  @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, skillId])
+}
+
+model Achievement {
+  id   String @id @default(cuid())
+  slug String @unique
+
+  name        String
+  description String
+  icon        String @default("badge")
+  tier        String @default("bronze") // bronze | silver | gold
+
+  /// How it is earned. kind: COURSE_COMPLETE | TRACK_COMPLETE | LESSON_COUNT |
+  /// PROJECT_COUNT | QUIZ_SCORE | STREAK. ref/threshold interpreted per kind.
+  criteriaKind String
+  criteriaRef  String @default("")
+  threshold    Int    @default(1)
+
+  users UserAchievement[]
+}
+
+model UserAchievement {
+  id            String @id @default(cuid())
+  userId        String
+  achievementId String
+
+  earnedAt DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+}
+
+model LessonProgress {
+  id       String @id @default(cuid())
+  userId   String
+  lessonId String
+
+  status       String    @default("IN_PROGRESS") // IN_PROGRESS | COMPLETED
+  secondsSpent Int       @default(0)
+  completedAt  DateTime?
+  lastViewedAt DateTime  @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@index([userId, status])
+}
+
+model Bookmark {
+  id     String @id @default(cuid())
+  userId String
+
+  kind  String // lesson | project | challenge | glossary | simulation | troubleshooting
+  ref   String // slug or composite "course/lesson"
+  title String
+  url   String
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, kind, ref])
+  @@index([userId, createdAt])
+}
+
+/// One row per user per calendar day of study — powers streaks and time-spent.
+model StudyDay {
+  id     String @id @default(cuid())
+  userId String
+  day    String // YYYY-MM-DD in UTC
+
+  seconds          Int @default(0)
+  lessonsCompleted Int @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, day])
+  @@index([userId, day])
+}
+
+// ---------------------------------------------------------------------------
+// Search
+// ---------------------------------------------------------------------------
+
+/// Denormalised search index, rebuilt by the seeder and by admin content
+/// mutations. Keeping it in one table means search ranks lessons, projects,
+/// glossary terms and troubleshooting entries against each other consistently.
+model SearchDoc {
+  id String @id @default(cuid())
+
+  kind  String // lesson | course | project | challenge | glossary | simulation | troubleshooting
+  ref   String
+  url   String
+  title String
+
+  summary String @default("")
+  /// Lowercased, whitespace-normalised searchable text.
+  body    String @default("")
+  keywords String @default("")
+
+  difficulty String @default("")
+  weight     Int    @default(0) // static boost so courses outrank stray mentions
+
+  @@unique([kind, ref])
+  @@index([kind])
+}

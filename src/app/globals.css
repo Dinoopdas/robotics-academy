@@ -1,26 +1,288 @@
 @import "tailwindcss";
+@import "katex/dist/katex.min.css";
+
+/*
+ * Theming is class-driven rather than media-driven so the header toggle can
+ * override the OS preference. `ThemeScript` stamps `.dark` on <html> before
+ * paint, so there is no flash of the wrong theme.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---------------------------------------------------------------------------
+ * Visual identity
+ *
+ * The palette is instrument-panel, not classroom: near-black graphite surfaces,
+ * a single signal cyan that means "live/active", and a restrained set of status
+ * hues borrowed from lab equipment (emerald = nominal, amber = caution,
+ * rose = fault). Nothing is candy-coloured; nothing is pure black or pure
+ * white, so large text surfaces stay comfortable for long reading sessions.
+ * ------------------------------------------------------------------------- */
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+
+  --surface-0: #f7f8fa;
+  --surface-1: #ffffff;
+  --surface-2: #f1f3f7;
+  --surface-3: #e6e9f0;
+
+  --line: #d9dee8;
+  --line-strong: #c3cad8;
+
+  --text-1: #0d1219;
+  --text-2: #414c5e;
+  --text-3: #6b7789;
+
+  --signal: #0891a8;
+  --signal-strong: #067387;
+  --signal-soft: #e0f5f8;
+
+  --violet: #6d4bd6;
+  --violet-soft: #eeeaff;
+  --emerald: #0d8a5f;
+  --emerald-soft: #e0f6ec;
+  --amber: #a86b06;
+  --amber-soft: #fdf1dc;
+  --rose: #c0334c;
+  --rose-soft: #fdeaee;
+
+  --grid-line: rgba(13, 18, 25, 0.05);
+  --glow: rgba(8, 145, 168, 0.12);
+}
+
+.dark {
+  color-scheme: dark;
+
+  --surface-0: #080b10;
+  --surface-1: #0e131b;
+  --surface-2: #141b25;
+  --surface-3: #1d2634;
+
+  --line: #232d3c;
+  --line-strong: #33405380;
+
+  --text-1: #e8edf5;
+  --text-2: #9aa8bd;
+  --text-3: #6d7c92;
+
+  --signal: #35d6e8;
+  --signal-strong: #6ce6f2;
+  --signal-soft: #0d2c33;
+
+  --violet: #a78bfa;
+  --violet-soft: #221c3b;
+  --emerald: #34d399;
+  --emerald-soft: #0d2b22;
+  --amber: #fbbf24;
+  --amber-soft: #2e2411;
+  --rose: #fb7185;
+  --rose-soft: #2e1620;
+
+  --grid-line: rgba(148, 178, 210, 0.06);
+  --glow: rgba(53, 214, 232, 0.16);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-surface-0: var(--surface-0);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-text-1: var(--text-1);
+  --color-text-2: var(--text-2);
+  --color-text-3: var(--text-3);
+
+  --color-signal: var(--signal);
+  --color-signal-strong: var(--signal-strong);
+  --color-signal-soft: var(--signal-soft);
+
+  --color-violet: var(--violet);
+  --color-violet-soft: var(--violet-soft);
+  --color-emerald: var(--emerald);
+  --color-emerald-soft: var(--emerald-soft);
+  --color-amber: var(--amber);
+  --color-amber-soft: var(--amber-soft);
+  --color-rose: var(--rose);
+  --color-rose-soft: var(--rose-soft);
+
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono:
+    ui-monospace, "SFMono-Regular", "Cascadia Mono", "Consolas", "Liberation Mono", Menlo, monospace;
+
+  --radius-panel: 0.875rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    border-color: var(--line);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--surface-0);
+    color: var(--text-1);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv05", "ss01";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: var(--signal);
+    color: var(--surface-0);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--signal);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    color: var(--text-1);
+    letter-spacing: -0.019em;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  /* Engineering blueprint grid used behind hero and section headers. */
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+    background-size: 44px 44px;
+  }
+
+  .bg-grid-fine {
+    background-image:
+      linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+    background-size: 14px 14px;
+  }
+
+  /* Small-caps technical label. Used for eyebrows and axis titles. */
+  .label-tech {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--text-3);
+  }
+
+  .panel {
+    background-color: var(--surface-1);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-panel);
+  }
+
+  /* Long-form lesson prose. Kept here rather than in @tailwindcss/typography
+     so the rhythm matches the block renderer's own spacing exactly. */
+  .prose-lesson {
+    color: var(--text-2);
+    font-size: 1.0625rem;
+    line-height: 1.75;
+  }
+
+  .prose-lesson strong {
+    color: var(--text-1);
+    font-weight: 600;
+  }
+
+  .prose-lesson a {
+    color: var(--signal);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+  }
+
+  .prose-lesson a:hover {
+    color: var(--signal-strong);
+  }
+
+  .prose-lesson code {
+    font-family: var(--font-mono);
+    font-size: 0.875em;
+    background-color: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 0.1em 0.34em;
+    color: var(--text-1);
+    white-space: nowrap;
+  }
+}
+
+@layer utilities {
+  .scrollbar-slim {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+  }
+
+  .scrollbar-slim::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+  }
+
+  .scrollbar-slim::-webkit-scrollbar-thumb {
+    background-color: var(--line-strong);
+    border-radius: 99px;
+  }
+
+  .scrollbar-slim::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+/* Shiki runs with defaultColor:false, so each token carries both --shiki-light
+   and --shiki-dark as inline custom properties and no committed colour. Both
+   rules below are required: without the light one, light mode inherits body
+   text colour and the code renders unhighlighted. Backgrounds stay transparent
+   because the surrounding figure already provides the surface. */
+.shiki,
+.shiki span {
+  color: var(--shiki-light);
+  background-color: transparent !important;
+}
+
+html.dark .shiki,
+html.dark .shiki span {
+  color: var(--shiki-dark);
+  background-color: transparent !important;
+}
+
+.katex-display {
+  margin: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25rem 0;
+}
+
+.katex {
+  font-size: 1.05em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
