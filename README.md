@@ -3,6 +3,11 @@
 An interactive robotics learning platform: sixteen levels from "what is a robot?" to designing,
 programming, simulating and troubleshooting real robotic systems.
 
+> **Taking over this project?** Start with **[HANDOVER.md](HANDOVER.md)** — how to run it, how the
+> database and deployment fit together, how to add content, and the mistakes that already cost a
+> day of debugging. Credentials are handed over separately in `CREDENTIALS.local.md`, which is
+> deliberately not in this repository.
+
 ---
 
 ## Running it
