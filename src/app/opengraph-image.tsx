@@ -15,17 +15,22 @@ import { ImageResponse } from "next/og";
 export const alt = "Robotics Academy — learn robotics from zero to advanced by building real projects";
 
 /**
- * Rendered at 2× the 1200×630 standard.
+ * Rendered at exactly 2× LinkedIn's recommended 1200×627.
  *
- * Social platforms re-encode whatever you give them, and a dark background
- * behind thin light text is the worst case for that — compression rings around
+ * Two things drive this. Social platforms re-encode whatever you give them,
+ * and light text on a dark ground is the worst case — compression rings around
  * every high-contrast edge and the result looks soft. Supplying twice the
- * pixels means their downscale resolves sharp instead of their upscale
- * resolving blurry. The aspect ratio is unchanged at 1.91:1, which is the part
- * that actually has to match.
+ * pixels means their downscale resolves sharp rather than their upscale
+ * resolving blurry.
+ *
+ * The height is 627, not the commonly-quoted 630. 1200×630 is ratio 1.9048;
+ * LinkedIn targets 1200×627, ratio 1.9139. Close enough to look identical, but
+ * different enough that the platform resamples to fit instead of scaling
+ * cleanly — and resampling is exactly what softens the edges. Matching their
+ * ratio makes it a straight 2:1 reduction, which is the sharpest possible.
  */
 const SCALE = 2;
-export const size = { width: 1200 * SCALE, height: 630 * SCALE };
+export const size = { width: 1200 * SCALE, height: 627 * SCALE };
 export const contentType = "image/png";
 
 /** Scales a design value from the 1200×630 layout to the rendered size. */
