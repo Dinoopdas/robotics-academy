@@ -13,8 +13,23 @@ import { ImageResponse } from "next/og";
  */
 
 export const alt = "Robotics Academy — learn robotics from zero to advanced by building real projects";
-export const size = { width: 1200, height: 630 };
+
+/**
+ * Rendered at 2× the 1200×630 standard.
+ *
+ * Social platforms re-encode whatever you give them, and a dark background
+ * behind thin light text is the worst case for that — compression rings around
+ * every high-contrast edge and the result looks soft. Supplying twice the
+ * pixels means their downscale resolves sharp instead of their upscale
+ * resolving blurry. The aspect ratio is unchanged at 1.91:1, which is the part
+ * that actually has to match.
+ */
+const SCALE = 2;
+export const size = { width: 1200 * SCALE, height: 630 * SCALE };
 export const contentType = "image/png";
+
+/** Scales a design value from the 1200×630 layout to the rendered size. */
+const s = (value: number) => value * SCALE;
 
 const SIGNAL = "#35d6e8";
 const SURFACE = "#080b10";
@@ -36,13 +51,13 @@ export default async function OpengraphImage() {
           // the only way to draw a pattern here without an image asset.
           backgroundImage:
             "linear-gradient(rgba(148,178,210,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(148,178,210,0.07) 1px, transparent 1px)",
-          backgroundSize: "48px 48px",
-          padding: "64px 72px",
+          backgroundSize: `${s(48)}px ${s(48)}px`,
+          padding: `${s(64)}px ${s(72)}px`,
         }}
       >
         {/* Wordmark */}
-        <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-          <svg width="52" height="52" viewBox="0 0 32 32">
+        <div style={{ display: "flex", alignItems: "center", gap: s(18) }}>
+          <svg width={s(52)} height={s(52)} viewBox="0 0 32 32">
             <rect width="32" height="32" rx="7.5" fill={SIGNAL} />
             <path
               d="M10.5 23.5 L13.2 14.2 L23 10.4"
@@ -55,17 +70,17 @@ export default async function OpengraphImage() {
             <circle cx="23" cy="10.4" r="3.1" fill="#07141b" />
             <rect x="5.6" y="23.6" width="10.4" height="3.4" rx="1.7" fill="#07141b" />
           </svg>
-          <div style={{ display: "flex", fontSize: 30, fontWeight: 600, color: TEXT }}>
+          <div style={{ display: "flex", fontSize: s(30), fontWeight: 700, color: TEXT }}>
             Robotics
             <span style={{ color: SIGNAL }}>Academy</span>
           </div>
         </div>
 
         {/* Headline */}
-        <div style={{ display: "flex", flexDirection: "column", maxWidth: 940 }}>
+        <div style={{ display: "flex", flexDirection: "column", maxWidth: s(940) }}>
           <div
             style={{
-              fontSize: 68,
+              fontSize: s(68),
               fontWeight: 700,
               color: TEXT,
               lineHeight: 1.1,
@@ -78,12 +93,12 @@ export default async function OpengraphImage() {
           </div>
           <div
             style={{
-              fontSize: 68,
+              fontSize: s(68),
               fontWeight: 700,
               color: SIGNAL,
               lineHeight: 1.1,
               letterSpacing: "-0.02em",
-              marginTop: 6,
+              marginTop: s(6),
               display: "flex",
             }}
           >
@@ -92,7 +107,7 @@ export default async function OpengraphImage() {
         </div>
 
         {/* Substance, not slogans: the actual scale of the thing. */}
-        <div style={{ display: "flex", alignItems: "center", gap: 40 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: s(40) }}>
           {[
             ["16", "levels"],
             ["28", "lessons"],
@@ -100,8 +115,8 @@ export default async function OpengraphImage() {
             ["74", "glossary terms"],
           ].map(([value, label]) => (
             <div key={label} style={{ display: "flex", flexDirection: "column" }}>
-              <div style={{ fontSize: 42, fontWeight: 700, color: TEXT }}>{value}</div>
-              <div style={{ fontSize: 20, color: MUTED, marginTop: 2 }}>{label}</div>
+              <div style={{ fontSize: s(42), fontWeight: 700, color: TEXT }}>{value}</div>
+              <div style={{ fontSize: s(20), color: MUTED, marginTop: s(2) }}>{label}</div>
             </div>
           ))}
         </div>
