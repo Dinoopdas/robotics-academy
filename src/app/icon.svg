@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img">
+  <title>Robotics Academy</title>
+
+  <!--
+    Favicon, designed for 16px rather than scaled down from the site logo.
+
+    Three decisions that matter at this size:
+    - A solid cyan tile, not a transparent glyph. The tile is the silhouette,
+      so the icon stays visible against a white or a dark browser chrome.
+    - Two links instead of the logo's three. A third segment collapses into
+      noise below about 24px.
+    - Strokes at 4.2 units of 32, so they survive to roughly 2px at 16px.
+      Anything thinner disappears into the tile.
+  -->
+
+  <rect width="32" height="32" rx="7.5" fill="#12b3c9" />
+
+  <g stroke="#07141b" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <!-- Upper arm, then forearm: a single bend still reads as an arm at 16px. -->
+    <path d="M10.5 23.5 L13.2 14.2 L23 10.4" />
+  </g>
+
+  <!-- End effector: extra mass at the tip so the arm reads directionally. -->
+  <circle cx="23" cy="10.4" r="3.1" fill="#07141b" />
+
+  <!-- Base plinth, anchoring the arm to the bottom of the tile. -->
+  <rect x="5.6" y="23.6" width="10.4" height="3.4" rx="1.7" fill="#07141b" />
+</svg>

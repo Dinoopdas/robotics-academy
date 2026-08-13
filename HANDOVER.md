@@ -467,6 +467,8 @@ metadata · dark and light themes · responsive to 375 px.
 | See who signed up | `npm run db:studio` → `User` table |
 | Make someone an admin | `npm run db:studio` → `User` → set `role` to `ADMIN` |
 | Change the site URL | Update `NEXT_PUBLIC_SITE_URL` in Vercel, then redeploy |
+| Change the browser tab icon | Edit `src/app/icon.svg` (design it to read at 16px) |
+| Change the site logo | Edit `src/components/site/logo.tsx` |
 | Rotate the auth secret | New `AUTH_SECRET` in Vercel + redeploy (logs everyone out) |
 | Check for errors | Vercel dashboard → Deployments → Runtime Logs |
 
